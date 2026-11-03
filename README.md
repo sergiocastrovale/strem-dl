@@ -2,6 +2,15 @@
 
 Browse any [Stremio addon](https://github.com/Stremio/stremio-addon-sdk) as a directory tree, down to its stream links, and save the video. It doesn't play anything and isn't affiliated with Stremio. Only download what you have the right to.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Browsing an addon as a list, with the details of a stream on hover](docs/screenshots/list.png) | ![Browsing an addon as thumbnails, one folder at a time](docs/screenshots/thumbnails.png) |
+| ![The download queue with the details of a download](docs/screenshots/downloads.png) | ![Settings: download folder, downloads at once and dependencies](docs/screenshots/settings.png) |
+
+Posters come from each addon. The thumbnails above show the app's own placeholders instead.
+
 ## Web or desktop
 
 | | Web | Desktop |
@@ -60,15 +69,6 @@ rustup default stable
 
 **Tests**: `pnpm test`, and `cargo test` in `src-tauri`.
 
-## Releasing
-
-1. With everything committed, run `pnpm version patch` (or `minor`, `major`, or an exact number like `1.2.3`). It sets the version in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`, commits them and tags `vX.Y.Z`. Then `git push --follow-tags`.
-2. Go to **Actions > Release > Run workflow** and choose the branch. It runs the tests and prepares a draft release for that version. It builds nothing.
-3. From the same branch, run each build by hand under **Actions**: **Build Linux**, **Build Windows** and **Build macOS** (Apple Silicon and Intel, as two jobs). Each attaches its packages to the draft, and they can run in any order, together or days apart.
-4. Check the draft, then publish it, which creates the tag.
-
-A build stops if there's no draft yet, or if the draft was prepared from a different commit: run **Release** again from the commit you're building. If one build fails, run just that one again. A published release can only be added to from its own tag, which you can pick instead of a branch.
-
 ### Building Linux and Windows yourself
 
 To save GitHub minutes, build these on your own machine instead of the **Build Linux** and **Build Windows** workflows. macOS can only be built on GitHub.
@@ -102,8 +102,6 @@ You can opt to install later via Settings page.
 ## Usage
 
 Paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed (`https://`, or `http://` for localhost and IP addresses), and the field shows the completed address in grey: **Tab** or **→** fills it in. You can open up to 10 tabs simultaneously. Picking a favorite or watchlist item opens its tab and puts its address in the field.
-
-Browse each addon as a **list**, a tree you can open in place, or as **thumbnails**, one folder at a time with its posters. A folder holding only files, like a season's episodes, lists them instead. Tick boxes carry over between them. Press **/** to search, and **Esc** to clear the search or the selection. Hover over a link in the list for what its addon says about the video.
 
 Downloads depend on the type of link:
 
