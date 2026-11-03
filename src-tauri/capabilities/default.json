@@ -1,0 +1,38 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Move, resize and close the window from its own title bar, fetch addon JSON from any host, copy stream links or open them in the system handler, check whether a link is a file, pick a download folder and show saved files in it, and save favorites, URL history, the watchlist, downloads and settings in SQLite.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-minimize",
+    "core:window:allow-close",
+    "allow-download-start",
+    "allow-download-pause",
+    "allow-download-cancel",
+    "allow-check-download-folder",
+    "allow-capture-open",
+    "allow-capture-show",
+    "allow-capture-close",
+    "allow-media-probe",
+    "allow-deps-status",
+    "allow-deps-check",
+    "allow-deps-install",
+    "allow-show-in-folder",
+    "clipboard-manager:allow-write-text",
+    "sql:default",
+    "sql:allow-execute",
+    "dialog:allow-open",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "http://*:*" }, { "url": "https://*:*" }]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }, { "url": "magnet:*" }]
+    }
+  ]
+}

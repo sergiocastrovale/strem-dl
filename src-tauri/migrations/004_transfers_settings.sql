@@ -1,0 +1,11 @@
+ALTER TABLE downloads ADD COLUMN status TEXT NOT NULL DEFAULT 'opened';
+ALTER TABLE downloads ADD COLUMN total_bytes INTEGER;
+ALTER TABLE downloads ADD COLUMN done_bytes INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE downloads ADD COLUMN file_path TEXT;
+ALTER TABLE downloads ADD COLUMN validator TEXT;
+ALTER TABLE downloads ADD COLUMN error TEXT;
+
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+);

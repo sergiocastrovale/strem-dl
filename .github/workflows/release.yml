@@ -1,0 +1,187 @@
+# Builds the desktop app and attaches it to a draft GitHub release for the version in tauri.conf.json.
+# Run it by hand: Actions > Release > Run workflow. See "Releasing" in the README.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      linux:
+        description: Linux (.AppImage, .deb, .rpm)
+        type: boolean
+        default: true
+      windows:
+        description: Windows (-setup.exe, .msi)
+        type: boolean
+        default: true
+      macos:
+        description: macOS, Apple Silicon and Intel (.dmg, .app)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Two runs of the same branch would upload over each other.
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  NODE_VERSION: '24'
+  PNPM_VERSION: '10.33.4'
+  LINUX_PACKAGES: >-
+    libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev
+    libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils libfuse2
+    gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-22.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read the version
+        id: version
+        run: |
+          app=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          web=$(node -p "require('./package.json').version")
+          crate=$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -1)
+          if [ "$app" != "$web" ] || [ "$app" != "$crate" ]; then
+            echo "::error::Versions differ: tauri.conf.json $app, package.json $web, Cargo.toml $crate"
+            exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$app" ]; then
+            echo "::error::Running from tag $GITHUB_REF_NAME, but this commit's version is $app"
+            exit 1
+          fi
+          echo "tag=v$app" >> "$GITHUB_OUTPUT"
+
+      - name: Choose what to build
+        id: matrix
+        env:
+          LINUX: ${{ inputs.linux }}
+          WINDOWS: ${{ inputs.windows }}
+          MACOS: ${{ inputs.macos }}
+        run: |
+          # Linux builds on the oldest supported Ubuntu: what it links against sets the oldest distro that can run it.
+          entries='[]'
+          add() {
+            entries=$(jq -c --arg name "$1" --arg runner "$2" --arg target "$3" --arg args "$4" \
+              '. + [{name: $name, runner: $runner, target: $target, args: $args}]' <<< "$entries")
+          }
+          if [ "$LINUX" = true ]; then add Linux ubuntu-22.04 '' ''; fi
+          if [ "$WINDOWS" = true ]; then add Windows windows-2025 '' ''; fi
+          if [ "$MACOS" = true ]; then
+            add 'macOS Apple Silicon' macos-15 aarch64-apple-darwin '--target aarch64-apple-darwin'
+            add 'macOS Intel' macos-15 x86_64-apple-darwin '--target x86_64-apple-darwin'
+          fi
+          if [ "$entries" = '[]' ]; then
+            echo '::error::Pick at least one OS to build.'
+            exit 1
+          fi
+          echo "matrix=$entries" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+      - name: Install Linux packages
+        run: |
+          sudo apt-get update
+          # shellcheck disable=SC2086 # One package per word.
+          sudo apt-get install -y $LINUX_PACKAGES
+      - run: pnpm install --frozen-lockfile
+      # Before the Rust tests: the app embeds the built frontend, so they don't compile without it.
+      - run: pnpm build
+      - run: pnpm test
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
+  release:
+    name: Prepare release
+    needs: check
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    outputs:
+      id: ${{ steps.release.outputs.id }}
+    steps:
+      # One job does this, as builds starting together would each create their own draft.
+      - name: Find or create the draft
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          if is_draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$is_draft" = true ]; then
+              # Publishing creates the tag, so it has to point at what was just built.
+              gh release edit "$TAG" --target "$GITHUB_SHA"
+            else
+              tagged=$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)
+              if [ "$tagged" != "$GITHUB_SHA" ]; then
+                echo "::error::$TAG is already published from $tagged. Run this from that tag, or raise the version."
+                exit 1
+              fi
+            fi
+          else
+            gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "strem-dl $TAG" --generate-notes
+          fi
+          echo "id=$(gh release view "$TAG" --json databaseId --jq .databaseId)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: [check, release]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    strategy:
+      # One OS failing shouldn't throw away the others. They can be rebuilt by themselves.
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.check.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # shellcheck disable=SC2086 # One package per word.
+          sudo apt-get install -y $LINUX_PACKAGES
+      - run: pnpm install --frozen-lockfile
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.release.outputs.id }}
+          tauriScript: pnpm tauri
+          args: ${{ matrix.args }}

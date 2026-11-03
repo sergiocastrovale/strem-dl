@@ -1,0 +1,248 @@
+:root {
+  color-scheme: dark;
+
+  /* Neutrals */
+  --window: #151211;
+  --rail: #110e0d;
+  --inset: #100d0c;
+  --card: #1b1715;
+  --field: #1d1917;
+  --row-hover: #221d1b;
+  --row-selected: #2a1d17;
+  --button: #251f1c;
+  --chip: #2c2522;
+  --floating: #28221f;
+  --tooltip: #26201d;
+
+  /* Borders and lines */
+  --hairline: #221d1a;
+  --rail-border: #292320;
+  --border: #2d2623;
+  --field-border: #342c28;
+  --strong-border: #443a35;
+  --checkbox-off: #6a5e58;
+
+  /* Text */
+  --text: #f8f3ef;
+  --soft: #e0d7d1;
+  --secondary: #ccc1ba;
+  --muted: #b3a69f;
+  --dim: #9c8f88;
+  --placeholder: #8a7d76;
+  --faint: #7e716a;
+
+  /* Accent and status */
+  --accent: #ff8f5e;
+  --accent-hover: #ffb08c;
+  --on-accent: #2e0f00;
+  --accent-14: rgb(255 143 94 / 14%);
+  --accent-17: rgb(255 143 94 / 17%);
+  --toggle-on: #3a2418;
+  --done-bar: #a8603f;
+  --star: #ffc94d;
+  --folder: #f2c46d;
+  --version: #b2d76e;
+  --danger: #f87171;
+
+  /* Shadows */
+  --shadow-floating: 0 16px 40px rgb(0 0 0 / 50%);
+  --shadow-tooltip: 0 20px 40px rgb(0 0 0 / 50%);
+  --shadow-toast: 0 10px 30px rgb(0 0 0 / 40%);
+
+  --sans: 'Geist Variable', sans-serif;
+  --mono: 'Geist Mono Variable', monospace;
+
+  font: 15.5px var(--sans);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+/* Below this the layout has no room left, so the page scrolls instead of squashing. */
+#app {
+  min-width: 760px;
+  min-height: 480px;
+}
+
+body {
+  overflow: auto;
+  color: var(--text);
+  background: var(--window);
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+input {
+  outline: 0;
+  appearance: none;
+}
+
+input::placeholder {
+  color: var(--placeholder);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input:focus-visible {
+  outline: 0;
+}
+
+svg {
+  flex: none;
+}
+
+/* A field shows it has the keyboard around the whole control, not just the input inside it. */
+.field-box:focus-within {
+  border-color: var(--checkbox-off);
+}
+
+/* The two webviews draw scrollbars their own way unless told how. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #362e2a;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 10px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-color: #362e2a transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* Plain buttons on a surface. */
+.btn {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  background: var(--button);
+  border-radius: 7px;
+}
+
+.btn:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.btn:disabled,
+.btn-primary:disabled {
+  opacity: 0.38;
+}
+
+.btn-primary {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--accent);
+  border-radius: 7px;
+}
+
+/* Choose one: the view picker, the Downloads filter. */
+.segmented {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--field);
+  border: 1px solid var(--field-border);
+  border-radius: 8px;
+}
+
+.segmented button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--secondary);
+  border-radius: 6px;
+}
+
+.segmented button:hover {
+  background: var(--row-hover);
+}
+
+.segmented button.on {
+  color: var(--accent);
+  background: var(--toggle-on);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 3s;
+  }
+}

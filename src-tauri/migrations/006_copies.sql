@@ -1,0 +1,2 @@
+ALTER TABLE downloads ADD COLUMN alternates TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE downloads ADD COLUMN attempts TEXT NOT NULL DEFAULT '[]';
