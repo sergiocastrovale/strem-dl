@@ -160,6 +160,22 @@ A link you tick by itself is always queued. **Download** shows how many files th
 
 If a source saves no video, the app tries the title's other sources by itself, and **Sources tried** in the row's details says why each failed. A source that stopped partway stays **Failed** so **Resume** can continue it. Pages in bulk never open a window: if nothing else works, the row fails, and **Resume** retries with the page showing.
 
+## Supported sites
+
+There is no built-in site list. Direct files are downloaded as they are, and everything else goes to yt-dlp, which covers [about 1800 sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). If yt-dlp has no extractor for a page, the app loads it and looks for the video it requests. This list comes from what yt-dlp supports. It hasn't been tested site by site.
+
+**Likely to work**
+
+- **General video:** YouTube, Vimeo, Dailymotion, Twitch (VODs and clips), Facebook, Instagram, TikTok, X/Twitter, Reddit, Bilibili, Rumble, Odysee, Streamable, Archive.org.
+- **Broadcasters (free content, may be region-locked):** BBC iPlayer, ITVX, Channel 4, ARD, ZDF, Arte, RTVE, RAI, France.tv, NRK, SVT, CBC, ABC (AU), PBS, Tubi, Pluto TV.
+- **Embed hosts used by addons (varies, breaks often):** Streamtape, Doodstream, Mixdrop, Voe, Filemoon, Vidmoly, Streamwish, Vidoza, Upstream, Uqload, Mp4upload, Sibnet, OK.ru, VK.
+- **Direct links**, including debrid-backed addons such as Torrentio.
+
+**Unlikely to work**
+
+- **DRM-protected services:** Netflix, Disney+, Prime Video, Max, Hulu, Apple TV+. Protected video can't be decrypted.
+- **Paid or login-only content.** The app has no way to pass cookies to yt-dlp.
+
 ## Limitations
 
 - DRM-protected video and live streams can't be saved.
