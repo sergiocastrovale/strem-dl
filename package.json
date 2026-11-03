@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "version": "node scripts/sync-version.mjs",
+    "build:local": "node scripts/build-local.mjs",
     "tauri": "tauri",
     "tauri:wsl": "bash -c 'pnpm tauri dev 2> >(grep --line-buffered -vE \"Dropped Escape call|libEGL warning\" >&2)'"
   },

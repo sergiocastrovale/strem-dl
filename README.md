@@ -69,6 +69,17 @@ rustup default stable
 
 A build stops if there's no draft yet, or if the draft was prepared from a different commit: run **Release** again from the commit you're building. If one build fails, run just that one again. A published release can only be added to from its own tag, which you can pick instead of a branch.
 
+### Building Linux and Windows yourself
+
+To save GitHub minutes, build these on your own machine instead of the **Build Linux** and **Build Windows** workflows. macOS can only be built on GitHub.
+
+```bash
+pnpm build:local             # tests, builds, and checks the result for personal details
+pnpm build:local --upload    # ...then adds the packages to the draft release, creating it if needed
+```
+
+It rewrites your home folder, cargo folder and project folder out of the build, so your username isn't inside the program, then searches the program, web files and unpacked packages for your username, home path and any other git email, and stops if it finds one. It only uploads from a clean, pushed commit, to a draft for that same commit, so run it from the same commit on each system. Windows needs the tools listed under Installation, and the repo on a Windows drive.
+
 The packages aren't signed, so Windows SmartScreen warns about them. macOS blocks the app until its quarantine flag is removed, with `xattr -cr /Applications/strem-dl.app`.
 
 ## First launch (desktop)
