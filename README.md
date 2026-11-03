@@ -7,7 +7,7 @@ Browse any [Stremio addon](https://github.com/Stremio/stremio-addon-sdk) as a di
 | | |
 |---|---|
 | ![Browsing an addon as a list, with the details of a stream on hover](docs/screenshots/list.png) | ![Browsing an addon as thumbnails, one folder at a time](docs/screenshots/thumbnails.png) |
-| ![The download queue with the details of a download](docs/screenshots/downloads.png) | ![Settings: download folder, downloads at once and dependencies](docs/screenshots/settings.png) |
+| ![The download queue with the details of a download](docs/screenshots/downloads.png) | |
 
 Posters come from each addon. The thumbnails above show the app's own placeholders instead.
 
@@ -53,6 +53,14 @@ Build on the OS you're targeting.
 | Windows | See below. Use a Windows drive, not WSL | `-setup.exe`, `.msi` |
 | macOS | `xcode-select --install`, then `brew install node pnpm rust` | `.dmg`, `.app` |
 
+macOS needs the Xcode command line tools and [Homebrew](https://brew.sh):
+
+```bash
+xcode-select --install
+brew install node pnpm rustup
+rustup default stable
+```
+
 Debian or Ubuntu, plus [Rust](https://rustup.rs):
 
 ```bash
@@ -68,6 +76,27 @@ rustup default stable
 ```
 
 **Tests**: `pnpm test`, and `cargo test` in `src-tauri`.
+
+### Building on a Mac
+
+```bash
+pnpm install
+pnpm tauri build    # builds for this Mac's chip
+```
+
+Output is in `src-tauri/target/release/bundle/`: `dmg/strem-dl_<version>_<arch>.dmg` and `macos/strem-dl.app`. `aarch64` is Apple Silicon, `x64` is Intel. The build is ad-hoc signed only, not notarized. To build both chips, add the other target with `rustup target add x86_64-apple-darwin` (or `aarch64-apple-darwin`) and run `pnpm tauri build --target <that target>`. Or run **Build macOS** under Actions, which builds both.
+
+### Installing on a Mac
+
+1. Download the `.dmg` for your chip from the [releases](../../releases): `aarch64` for Apple Silicon (M1 and later), `x64` for Intel.
+2. Open it and drag **strem-dl** into **Applications**.
+3. The app isn't notarized, so macOS blocks the first launch. Remove the quarantine flag once:
+
+   ```bash
+   xattr -cr /Applications/strem-dl.app
+   ```
+
+   Or right-click the app, choose **Open**, then **Open** again. On recent macOS, use **System Settings > Privacy & Security > Open Anyway**.
 
 ### Building Linux and Windows yourself
 
