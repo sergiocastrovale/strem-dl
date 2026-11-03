@@ -1,0 +1,19 @@
+# Builds the Linux packages and adds them to the draft release prepared by "Release" for this commit.
+# Run it by hand: Actions > Build Linux > Run workflow, from the same branch or tag as Release.
+name: Build Linux
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_build.yml
+    with:
+      name: Linux (.AppImage, .deb, .rpm)
+      # The oldest supported Ubuntu: what it links against sets the oldest distro that can run it.
+      runner: ubuntu-22.04

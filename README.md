@@ -63,10 +63,11 @@ rustup default stable
 ## Releasing
 
 1. With everything committed, run `pnpm version patch` (or `minor`, `major`, or an exact number like `1.2.3`). It sets the version in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`, commits them and tags `vX.Y.Z`. Then `git push --follow-tags`.
-2. Go to **Actions > Release > Run workflow**, choose the branch, and tick the systems to build.
-3. It runs the tests, then builds for each system and attaches the packages to a draft release for that version. Check the draft, then publish it, which creates the tag.
+2. Go to **Actions > Release > Run workflow** and choose the branch. It runs the tests and prepares a draft release for that version. It builds nothing.
+3. From the same branch, run each build by hand under **Actions**: **Build Linux**, **Build Windows** and **Build macOS** (Apple Silicon and Intel, as two jobs). Each attaches its packages to the draft, and they can run in any order, together or days apart.
+4. Check the draft, then publish it, which creates the tag.
 
-If a system fails, run it again with only that one ticked: its packages join the same draft. A published release can only be added to from its own tag, which you can pick instead of a branch.
+A build stops if there's no draft yet, or if the draft was prepared from a different commit: run **Release** again from the commit you're building. If one build fails, run just that one again. A published release can only be added to from its own tag, which you can pick instead of a branch.
 
 The packages aren't signed, so Windows SmartScreen warns about them. macOS blocks the app until its quarantine flag is removed, with `xattr -cr /Applications/strem-dl.app`.
 

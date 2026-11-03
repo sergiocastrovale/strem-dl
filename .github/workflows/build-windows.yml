@@ -1,0 +1,18 @@
+# Builds the Windows packages and adds them to the draft release prepared by "Release" for this commit.
+# Run it by hand: Actions > Build Windows > Run workflow, from the same branch or tag as Release.
+name: Build Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_build.yml
+    with:
+      name: Windows (-setup.exe, .msi)
+      runner: windows-2025

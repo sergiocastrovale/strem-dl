@@ -1,0 +1,30 @@
+# Builds the macOS packages and adds them to the draft release prepared by "Release" for this commit.
+# Run it by hand: Actions > Build macOS > Run workflow, from the same branch or tag as Release.
+name: Build macOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apple-silicon:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_build.yml
+    with:
+      name: macOS Apple Silicon (.dmg, .app)
+      runner: macos-15
+      target: aarch64-apple-darwin
+      args: --target aarch64-apple-darwin
+
+  intel:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_build.yml
+    with:
+      name: macOS Intel (.dmg, .app)
+      runner: macos-15
+      target: x86_64-apple-darwin
+      args: --target x86_64-apple-darwin
