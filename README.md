@@ -15,7 +15,7 @@ Posters come from each addon. The thumbnails above show the app's own placeholde
 
 | | Web | Desktop |
 |---|---|---|
-| Tabs, search, favorites, watchlist | Yes | Yes |
+| Tabs, search, saved addons, watchlist | Yes | Yes |
 | Addons without CORS headers | Fail | Work |
 | Double-clicking a link | Opens it in a new tab | Downloads it |
 | Downloads, queue, resume | No | Yes |
@@ -130,7 +130,7 @@ You can opt to install later via Settings page.
 
 ## Usage
 
-Paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed (`https://`, or `http://` for localhost and IP addresses), and the field shows the completed address in grey: **Tab** or **→** fills it in. You can open up to 10 tabs simultaneously. Picking a favorite or watchlist item opens its tab and puts its address in the field.
+Paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed (`https://`, or `http://` for localhost and IP addresses), and the field shows the completed address in grey: **Tab** or **→** fills it in. You can open up to 10 tabs simultaneously. Every addon you open is saved automatically. Picking a saved or watchlist item opens its tab and puts its address in the field.
 
 Downloads depend on the type of link:
 

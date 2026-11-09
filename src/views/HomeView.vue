@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { Star } from '@lucide/vue'
+import { Bookmark } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AddonView from '../components/AddonView.vue'
 import Alert from '../components/Alert.vue'
 import TabStrip from '../components/TabStrip.vue'
 import UrlInput from '../components/UrlInput.vue'
-import { useFavorites } from '../lib/favorites'
 import { fetchJson } from '../lib/http'
+import { useSaved } from '../lib/saved'
 import { useSettings } from '../lib/settings'
 import { showToast } from '../lib/toast'
 import { TabLimitError, useTabs } from '../lib/useTabs'
@@ -15,7 +15,7 @@ import { useUrlHistory } from '../lib/urlHistory'
 import { parseWatchPath } from '../lib/watchlist'
 
 const history = useUrlHistory()
-const favorites = useFavorites()
+const saved = useSaved()
 const settings = useSettings()
 const route = useRoute()
 const url = ref('')
@@ -31,11 +31,16 @@ const tabs = useTabs(fetchJson, async (manifestUrl, name) => {
   } catch (cause) {
     error.value = `Couldn't save the URL: ${messageOf(cause)}`
   }
+  try {
+    await saved.add(manifestUrl, name)
+  } catch (cause) {
+    error.value = `Couldn't save the addon: ${messageOf(cause)}`
+  }
 })
 
 const activeUrl = computed(() => tabs.active.value?.url ?? null)
 const activeTree = computed(() => tabs.active.value?.tree ?? null)
-const isSaved = computed(() => favorites.has(activeTree.value?.manifestUrl.value ?? null))
+const isSaved = computed(() => saved.has(activeTree.value?.manifestUrl.value ?? null))
 
 onMounted(() => {
   if (!tabs.tabs.value.length) input.value?.focus()
@@ -49,7 +54,7 @@ function showOpenFailure(cause: unknown) {
   else error.value = messageOf(cause)
 }
 
-// A favorite or watchlist row picked on its page arrives as ?url=...&path=...
+// A saved or watchlist row picked on its page arrives as ?url=...&path=...
 watch(
   [() => route.query.url, () => route.query.path],
   ([target, rawPath]) => {
@@ -100,18 +105,18 @@ async function forgetUrl(target: string) {
   }
 }
 
-async function toggleFavorite() {
+async function toggleSaved() {
   const tree = activeTree.value
   const manifestUrl = tree?.manifestUrl.value
   const name = tree?.roots.value[0]?.label
   if (!manifestUrl || !name) return
   error.value = null
-  const adding = !favorites.has(manifestUrl)
+  const adding = !saved.has(manifestUrl)
   try {
-    await favorites.toggle(manifestUrl, name)
-    showToast(adding ? 'Added to favorites' : 'Removed from favorites')
+    await saved.toggle(manifestUrl, name)
+    showToast(adding ? 'Added to Saved' : 'Removed from Saved')
   } catch (cause) {
-    error.value = `Couldn't save the favorite: ${messageOf(cause)}`
+    error.value = `Couldn't update Saved: ${messageOf(cause)}`
   }
 }
 
@@ -142,10 +147,10 @@ function closeTab(id: number) {
             :class="{ on: isSaved }"
             type="button"
             :aria-pressed="isSaved"
-            :title="isSaved ? 'Remove from favorites' : 'Add to favorites'"
-            @click.prevent="toggleFavorite"
+            :title="isSaved ? 'Remove from Saved' : 'Add to Saved'"
+            @click.prevent="toggleSaved"
           >
-            <Star :size="14" />
+            <Bookmark :size="14" />
             {{ isSaved ? 'Saved' : 'Save' }}
           </button>
         </UrlInput>
@@ -173,7 +178,6 @@ function closeTab(id: number) {
       :active="tab.id === tabs.activeId.value"
       :view="settings.homeView.value"
       @retry="tabs.load(tab)"
-      @favorite="toggleFavorite"
     />
     <div v-if="!tabs.tabs.value.length" class="empty">Nothing open yet</div>
 

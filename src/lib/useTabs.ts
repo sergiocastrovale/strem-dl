@@ -1,6 +1,6 @@
 import { computed, ref, shallowRef, type ShallowRef } from 'vue'
 import type { PathSegment } from './addon'
-import { normalizeUrl } from './favorites'
+import { normalizeUrl } from './saved'
 import { useTree, type FetchJson } from './useTree'
 
 export const MAX_TABS = 10

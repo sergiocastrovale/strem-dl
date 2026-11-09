@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDownToLine, Eye, House, Settings, Star } from '@lucide/vue'
+import { ArrowDownToLine, Eye, House, Settings, Bookmark } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import Notice from './components/Notice.vue'
@@ -46,7 +46,7 @@ const activeDownloads = computed(() =>
 
 const nav = computed(() => [
   { name: 'home', label: 'Home', icon: House, badge: 0 },
-  { name: 'favorites', label: 'Favorites', icon: Star, badge: 0 },
+  { name: 'saved', label: 'Saved', icon: Bookmark, badge: 0 },
   { name: 'watchlist', label: 'Watchlist', icon: Eye, badge: 0 },
   { name: 'downloads', label: 'Downloads', icon: ArrowDownToLine, badge: activeDownloads.value },
 ])

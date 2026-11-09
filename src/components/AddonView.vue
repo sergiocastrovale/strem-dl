@@ -18,7 +18,6 @@ import {
   type LinkKind,
   type OpenedLink,
 } from '../lib/downloads'
-import { useFavorites } from '../lib/favorites'
 import { useSettings, type HomeViewMode, type SourceChoice } from '../lib/settings'
 import { showToast } from '../lib/toast'
 import { useWatchlist } from '../lib/watchlist'
@@ -26,14 +25,13 @@ import { MAX_SEARCH_LOADS, isCheckable, isFolderNode, type CollectedLink, type T
 import type { Tab } from '../lib/useTabs'
 
 const props = defineProps<{ tab: Tab; active: boolean; view: HomeViewMode }>()
-defineEmits<{ retry: []; favorite: [] }>()
+defineEmits<{ retry: [] }>()
 
 const SEARCH_DELAY_MS = 300
 /** Ask first from this many files: the queue would start straight away. */
 const BULK_CONFIRM_FROM = 50
 
 const tree = props.tab.tree
-const favorites = useFavorites()
 const watchlist = useWatchlist()
 const downloads = useDownloads()
 const settings = useSettings()
@@ -620,14 +618,12 @@ watch(
             :row="row"
             :focused="usingKeys && row.node.uid === focused"
             :expandable="tree.isExpandable(row.node)"
-            :favorite="row.node.kind === 'addon' && favorites.has(tree.manifestUrl.value)"
             :watched="isFolderNode(row.node) && watchlist.has(tree.manifestUrl.value, row.path)"
             :trail="trailOf(row)"
             @activate="clickRow(row)"
             @toggle="focused = row.node.uid; tree.toggle(row.node)"
             @retry="tree.retry(row)"
             @check="checkRow(row, $event, tree.rows.value)"
-            @favorite="$emit('favorite')"
             @watch="toggleWatch(row)"
           />
         </template>

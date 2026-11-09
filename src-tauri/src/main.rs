@@ -53,6 +53,12 @@ fn main() {
             sql: include_str!("../migrations/007_watch_poster.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "rename favorites to saved",
+            sql: include_str!("../migrations/008_saved.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

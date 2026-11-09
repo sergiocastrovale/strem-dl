@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Ellipsis, Eye, Film, Folder, FolderOpen, Info, Lock, Star } from '@lucide/vue'
+import { ChevronRight, Ellipsis, Eye, Film, Folder, FolderOpen, Info, Lock } from '@lucide/vue'
 import { computed, type Component } from 'vue'
 import { isFolderNode, type VisibleRow } from '../lib/useTree'
 import CheckBox from './CheckBox.vue'
@@ -8,7 +8,6 @@ const props = defineProps<{
   row: VisibleRow
   focused: boolean
   expandable: boolean
-  favorite?: boolean
   watched?: boolean
   /** Breadcrumb for a search result. */
   trail?: string
@@ -19,7 +18,6 @@ defineEmits<{
   toggle: []
   retry: []
   check: [event: MouseEvent]
-  favorite: []
   watch: []
 }>()
 
@@ -80,17 +78,6 @@ const isCatalog = computed(() => node.value.kind === 'folder' && props.row.depth
 
     <template v-if="node.kind === 'addon'">
       <span v-if="node.hint" class="version mono">{{ node.hint }}</span>
-      <button
-        v-if="favorite"
-        class="flat star"
-        type="button"
-        tabindex="-1"
-        aria-label="Remove from favorites"
-        title="Remove from favorites"
-        @click.stop="$emit('favorite')"
-      >
-        <Star :size="14" />
-      </button>
     </template>
 
     <button
@@ -220,10 +207,6 @@ const isCatalog = computed(() => node.value.kind === 'folder' && props.row.depth
 .flat {
   display: flex;
   flex: none;
-}
-
-.star {
-  color: var(--star);
 }
 
 .eye {

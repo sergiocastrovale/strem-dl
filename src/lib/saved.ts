@@ -1,11 +1,11 @@
 import { ref } from 'vue'
-import { addonBase, parseManifest } from './addon'
-import type { Db, Favorite } from './db'
+import { addonBase } from './addon'
+import type { Db, SavedAddon } from './db'
 import { getDb } from './platform'
 
-export type { Favorite }
+export type { SavedAddon }
 
-/** Canonical manifest URL, so the same addon pasted two ways is one favorite. */
+/** Canonical manifest URL, so the same addon pasted two ways is one saved addon. */
 export function normalizeUrl(input: string): string {
   return `${addonBase(input)}/manifest.json`
 }
@@ -14,16 +14,16 @@ function messageOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
 }
 
-export function createFavorites(database: Promise<Db>) {
-  const items = ref<Favorite[]>([])
+export function createSaved(database: Promise<Db>) {
+  const items = ref<SavedAddon[]>([])
   const error = ref<string | null>(null)
 
   const ready = database.then(async (db) => {
-    items.value = await db.favorites()
+    items.value = await db.saved()
     return db
   })
   ready.catch((cause) => {
-    error.value = `Couldn't load favorites: ${messageOf(cause)}`
+    error.value = `Couldn't load saved addons: ${messageOf(cause)}`
   })
 
   function keyOf(url: string | null): string | null {
@@ -43,14 +43,14 @@ export function createFavorites(database: Promise<Db>) {
   async function add(url: string, name: string) {
     const key = normalizeUrl(url)
     const db = await ready
-    await db.addFavorite({ url: key, name })
+    await db.addSaved({ url: key, name })
     if (!has(key)) items.value = [...items.value, { url: key, name }]
   }
 
   async function remove(url: string) {
     const key = normalizeUrl(url)
     const db = await ready
-    await db.removeFavorite(key)
+    await db.removeSaved(key)
     items.value = items.value.filter((f) => f.url !== key)
   }
 
@@ -60,19 +60,11 @@ export function createFavorites(database: Promise<Db>) {
     else await add(url, name)
   }
 
-  /** Fetch the manifest to learn the addon's name, then add it. Returns that name. */
-  async function addFromUrl(input: string, fetchJson: (url: string) => Promise<unknown>): Promise<string> {
-    const key = normalizeUrl(input)
-    const { name } = parseManifest(await fetchJson(key))
-    await add(key, name)
-    return name
-  }
-
-  return { items, error, has, add, remove, toggle, addFromUrl }
+  return { items, error, has, add, remove, toggle }
 }
 
-let shared: ReturnType<typeof createFavorites> | undefined
+let shared: ReturnType<typeof createSaved> | undefined
 
-export function useFavorites() {
-  return (shared ??= createFavorites(getDb()))
+export function useSaved() {
+  return (shared ??= createSaved(getDb()))
 }
