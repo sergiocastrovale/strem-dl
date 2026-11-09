@@ -18,7 +18,7 @@ async function remove(target: string) {
 }
 
 function open(target: string) {
-  router.push({ name: 'home', query: { url: target } })
+  router.push({ name: 'home', query: { source: target } })
 }
 </script>
 

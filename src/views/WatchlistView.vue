@@ -24,7 +24,7 @@ async function remove(entry: WatchEntry) {
 }
 
 function open(entry: WatchEntry) {
-  router.push({ name: 'home', query: { url: entry.url, path: JSON.stringify(entry.path) } })
+  router.push({ name: 'browse', query: { url: entry.url, path: JSON.stringify(entry.path) } })
 }
 
 /** Where it sits. Directly in the addon, there's only the addon to name. */

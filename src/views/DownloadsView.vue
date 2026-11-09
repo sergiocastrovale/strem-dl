@@ -151,7 +151,7 @@ function doubleClick(entry: DownloadEntry, event: MouseEvent) {
 function browse(entry: DownloadEntry) {
   const query: Record<string, string> = { url: entry.addonUrl }
   if (entry.path.length) query.path = JSON.stringify(entry.path)
-  router.push({ name: 'home', query })
+  router.push({ name: 'browse', query })
 }
 
 const where = (entry: DownloadEntry) => [entry.addonName, ...entry.path.map((segment) => segment.label)].join(' › ')

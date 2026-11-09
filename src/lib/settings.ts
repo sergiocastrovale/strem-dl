@@ -53,7 +53,7 @@ export function createSettings(database: Promise<Db>, { systemFolder, validate }
   const webNoticeDismissed = ref(true)
   const setupSkipped = ref(false)
   const bulkSource = ref<SourceChoice>('first')
-  const homeView = ref<HomeViewMode>('list')
+  const homeView = ref<HomeViewMode>('grid')
   const downloadFolder = computed(() => customFolder.value ?? defaultFolder.value)
 
   const ready = Promise.all([database, systemFolder()]).then(async ([db, system]) => {
@@ -64,7 +64,7 @@ export function createSettings(database: Promise<Db>, { systemFolder, validate }
     setupSkipped.value = (await db.setting(SETUP_SKIPPED)) === 'true'
     const source = await db.setting(BULK_SOURCE)
     bulkSource.value = SOURCE_CHOICES.find((choice) => choice.id === source)?.id ?? 'first'
-    homeView.value = (await db.setting(HOME_VIEW)) === 'grid' ? 'grid' : 'list'
+    homeView.value = (await db.setting(HOME_VIEW)) === 'list' ? 'list' : 'grid'
     return db
   })
   ready.catch((cause) => {

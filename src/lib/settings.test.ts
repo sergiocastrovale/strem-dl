@@ -84,12 +84,12 @@ describe('settings', () => {
     const settings = create(db)
     await settings.ready
     expect(settings.bulkSource.value).toBe('first')
-    expect(settings.homeView.value).toBe('list')
-    await settings.setHomeView('grid')
+    expect(settings.homeView.value).toBe('grid')
+    await settings.setHomeView('list')
 
     const reloaded = create(db)
     await reloaded.ready
-    expect(reloaded.homeView.value).toBe('grid')
+    expect(reloaded.homeView.value).toBe('list')
   })
 
   it('keeps the old folder when the new one is refused', async () => {

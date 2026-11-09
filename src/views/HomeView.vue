@@ -1,99 +1,62 @@
 <script setup lang="ts">
-import { Bookmark } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AddonView from '../components/AddonView.vue'
-import Alert from '../components/Alert.vue'
-import TabStrip from '../components/TabStrip.vue'
+import SourceShelves from '../components/SourceShelves.vue'
 import UrlInput from '../components/UrlInput.vue'
-import { fetchJson } from '../lib/http'
+import ViewToggle from '../components/ViewToggle.vue'
+import { combineTrees } from '../lib/combinedTree'
+import { useKeptScroll } from '../lib/keptScroll'
 import { useSaved } from '../lib/saved'
 import { useSettings } from '../lib/settings'
-import { showToast } from '../lib/toast'
-import { TabLimitError, useTabs } from '../lib/useTabs'
+import { useSources, type Source } from '../lib/sources'
 import { useUrlHistory } from '../lib/urlHistory'
-import { parseWatchPath } from '../lib/watchlist'
 
 const history = useUrlHistory()
 const saved = useSaved()
+const sources = useSources()
 const settings = useSettings()
 const route = useRoute()
+const router = useRouter()
 const url = ref('')
 const input = ref<InstanceType<typeof UrlInput>>()
+const scroller = ref<HTMLElement>()
 const error = ref<string | null>(null)
-const limitAlert = ref<string | null>(null)
+const opening = ref(false)
+const kept = useKeptScroll(scroller)
+
+const all = combineTrees(() => sources.list.value)
+const view = computed(() => settings.homeView.value)
+const anchorOf = (source: Pick<Source, 'url'>) => `source-${encodeURIComponent(source.url)}`
 
 const messageOf = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 
-const tabs = useTabs(fetchJson, async (manifestUrl, name) => {
-  try {
-    await history.record(manifestUrl, name)
-  } catch (cause) {
-    error.value = `Couldn't save the URL: ${messageOf(cause)}`
+/** Show where an addon is on the page. */
+async function scrollTo(source: Source) {
+  await nextTick()
+  if (view.value === 'grid') {
+    document.getElementById(anchorOf(source))?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    return
   }
-  try {
-    await saved.add(manifestUrl, name)
-  } catch (cause) {
-    error.value = `Couldn't save the addon: ${messageOf(cause)}`
-  }
-})
-
-const activeUrl = computed(() => tabs.active.value?.url ?? null)
-const activeTree = computed(() => tabs.active.value?.tree ?? null)
-const isSaved = computed(() => saved.has(activeTree.value?.manifestUrl.value ?? null))
-
-onMounted(() => {
-  if (!tabs.tabs.value.length) input.value?.focus()
-})
-
-// The field shows the address of the tab showing.
-watch(activeUrl, (current) => (url.value = current ?? ''))
-
-function showOpenFailure(cause: unknown) {
-  if (cause instanceof TabLimitError) limitAlert.value = cause.message
-  else error.value = messageOf(cause)
+  const root = source.tree.roots.value[0]
+  if (root) document.getElementById(`node-${root.uid}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
 }
 
-// A saved or watchlist row picked on its page arrives as ?url=...&path=...
-watch(
-  [() => route.query.url, () => route.query.path],
-  ([target, rawPath]) => {
-    if (typeof target !== 'string' || !target) return
-    error.value = null
-    limitAlert.value = null
-    // Shows which addon is open, and leaves the field ready to change it.
-    url.value = target
-    try {
-      tabs.open(target, parseWatchPath(rawPath))
-    } catch (cause) {
-      showOpenFailure(cause)
-    }
-  },
-  { immediate: true },
-)
-
-function submit() {
-  if (!url.value.trim()) return
+/** Load the addon, which saves it, and show it. */
+async function submit() {
+  if (!url.value.trim() || opening.value) return
   error.value = null
-  limitAlert.value = null
+  opening.value = true
   try {
-    if (tabs.open(url.value) === 'unchanged') return
-    url.value = activeUrl.value ?? ''
+    const source = await sources.open(url.value)
+    url.value = ''
     input.value?.blur()
+    await scrollTo(source)
   } catch (cause) {
-    showOpenFailure(cause)
+    error.value = messageOf(cause)
+  } finally {
+    opening.value = false
   }
-}
-
-/** A new tab opens once there's an address for it. */
-function startNewTab() {
-  url.value = ''
-  input.value?.focus()
-}
-
-/** Leaving the field empty goes back to showing where the tab is. */
-function restoreUrl() {
-  if (!url.value.trim() && activeUrl.value) url.value = activeUrl.value
 }
 
 async function forgetUrl(target: string) {
@@ -105,83 +68,50 @@ async function forgetUrl(target: string) {
   }
 }
 
-async function toggleSaved() {
-  const tree = activeTree.value
-  const manifestUrl = tree?.manifestUrl.value
-  const name = tree?.roots.value[0]?.label
-  if (!manifestUrl || !name) return
-  error.value = null
-  const adding = !saved.has(manifestUrl)
-  try {
-    await saved.toggle(manifestUrl, name)
-    showToast(adding ? 'Added to Saved' : 'Removed from Saved')
-  } catch (cause) {
-    error.value = `Couldn't update Saved: ${messageOf(cause)}`
-  }
-}
-
-function closeTab(id: number) {
-  tabs.close(id)
-  limitAlert.value = null
-  if (tabs.tabs.value.length === 0) input.value?.focus()
-}
+// An addon picked on another page arrives as ?source=<url>.
+watch(
+  () => route.query.source,
+  async (target) => {
+    if (typeof target !== 'string' || !target) return
+    router.replace({ name: 'home' })
+    error.value = null
+    try {
+      await scrollTo(await sources.open(target))
+    } catch (cause) {
+      error.value = messageOf(cause)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
   <div class="app">
     <div class="header">
-      <form @submit.prevent="submit">
+      <form class="add" @submit.prevent="submit">
         <UrlInput
           ref="input"
           v-model="url"
-          highlight
           :entries="history.entries.value"
-          placeholder="Paste an addon URL and press Enter"
+          placeholder="Paste an addon URL and press Enter to add it"
           @pick="submit"
           @remove="forgetUrl"
-          @blur="restoreUrl"
-        >
-          <button
-            v-if="activeTree?.manifestUrl.value"
-            class="saved"
-            :class="{ on: isSaved }"
-            type="button"
-            :aria-pressed="isSaved"
-            :title="isSaved ? 'Remove from Saved' : 'Add to Saved'"
-            @click.prevent="toggleSaved"
-          >
-            <Bookmark :size="14" />
-            {{ isSaved ? 'Saved' : 'Save' }}
-          </button>
-        </UrlInput>
+        />
       </form>
+      <ViewToggle :view="view" @view="settings.setHomeView" />
+    </div>
+    <div v-if="opening" class="status note" role="status">Loading the addon…</div>
+    <div v-if="error" class="status" role="alert">{{ error }}</div>
 
-      <Alert v-if="limitAlert" @dismiss="limitAlert = null">{{ limitAlert }}</Alert>
-
-      <TabStrip
-        v-if="tabs.tabs.value.length"
-        :tabs="tabs.tabs.value"
-        :active-id="tabs.activeId.value"
-        :view="settings.homeView.value"
-        @activate="tabs.activate"
-        @close="closeTab"
-        @add="startNewTab"
-        @view="settings.setHomeView"
-      />
+    <div v-if="!sources.list.value.length" class="empty">
+      {{ saved.error.value ?? 'Nothing here yet. Paste an addon URL above to add it.' }}
     </div>
 
-    <AddonView
-      v-for="tab in tabs.tabs.value"
-      v-show="tab.id === tabs.activeId.value"
-      :key="tab.id"
-      :tab="tab"
-      :active="tab.id === tabs.activeId.value"
-      :view="settings.homeView.value"
-      @retry="tabs.load(tab)"
-    />
-    <div v-if="!tabs.tabs.value.length" class="empty">Nothing open yet</div>
+    <div v-else-if="view === 'grid'" ref="scroller" class="shelves" @scroll.passive="kept.onScroll">
+      <SourceShelves v-for="source in sources.list.value" :id="anchorOf(source)" :key="source.url" :source="source" />
+    </div>
 
-    <div v-if="error" class="status" role="alert">{{ error }}</div>
+    <AddonView v-else :browser="all" :active="true" view="list" />
   </div>
 </template>
 
@@ -195,34 +125,25 @@ function closeTab(id: number) {
 .header {
   display: flex;
   flex: none;
-  flex-direction: column;
   gap: 12px;
-  padding: 16px 20px 0;
-}
-
-.saved {
-  display: flex;
-  flex: none;
-  gap: 6px;
   align-items: center;
-  height: 30px;
-  padding: 0 12px;
-  font-size: 14.5px;
-  font-weight: 500;
-  background: var(--chip);
-  border-radius: 7px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
 }
 
-.saved svg {
-  color: var(--muted);
+.add {
+  flex: 1;
+  min-width: 0;
 }
 
-.saved.on svg {
-  color: var(--star);
-}
-
-.saved:hover {
-  filter: brightness(1.12);
+.shelves {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 44px;
+  min-height: 0;
+  padding: 24px 24px 60px;
+  overflow: auto;
 }
 
 .empty {
@@ -241,7 +162,11 @@ function closeTab(id: number) {
   color: var(--danger);
   font-size: 14.5px;
   background: var(--inset);
-  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   overflow-wrap: anywhere;
+}
+
+.status.note {
+  color: var(--muted);
 }
 </style>

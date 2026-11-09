@@ -18,20 +18,29 @@ import {
   type LinkKind,
   type OpenedLink,
 } from '../lib/downloads'
+import type { CombinedTree, SourcedLink } from '../lib/combinedTree'
 import { useSettings, type HomeViewMode, type SourceChoice } from '../lib/settings'
+import { withoutAddonName } from '../lib/shelves'
+import { sourceName } from '../lib/sources'
 import { showToast } from '../lib/toast'
 import { useWatchlist } from '../lib/watchlist'
-import { MAX_SEARCH_LOADS, isCheckable, isFolderNode, type CollectedLink, type TreeNode, type VisibleRow } from '../lib/useTree'
-import type { Tab } from '../lib/useTabs'
+import { MAX_SEARCH_LOADS, isCheckable, isFolderNode, type TreeNode, type VisibleRow } from '../lib/useTree'
 
-const props = defineProps<{ tab: Tab; active: boolean; view: HomeViewMode }>()
+const props = defineProps<{
+  /** One addon, or several one after another. */
+  browser: CombinedTree
+  active: boolean
+  view: HomeViewMode
+  /** A folder to browse to as soon as the addon is open. */
+  path?: PathSegment[] | null
+}>()
 defineEmits<{ retry: [] }>()
 
 const SEARCH_DELAY_MS = 300
 /** Ask first from this many files: the queue would start straight away. */
 const BULK_CONFIRM_FROM = 50
 
-const tree = props.tab.tree
+const tree = props.browser
 const watchlist = useWatchlist()
 const downloads = useDownloads()
 const settings = useSettings()
@@ -44,6 +53,8 @@ const usingKeys = ref(false)
 const copied = ref<number | null>(null)
 const actionError = ref<string | null>(null)
 const searchText = ref('')
+/** Link types to show. Kept here: other pages show the same addons with their own. */
+const filters = ref(new Set<LinkFilter>())
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 /** Where a shift-click extends from. */
 let lastChecked: number | null = null
@@ -63,14 +74,22 @@ const pendingBulk = ref<PendingBulk | null>(null)
 const hovered = ref<{ row: VisibleRow; element: HTMLElement } | null>(null)
 const browseUid = ref<number | null>(null)
 
-const addonName = computed(() => tree.roots.value[0]?.label ?? '')
+/** The addon a node is in, for saving where something came from. */
+function addonOf(uid: number): { url: string; name: string } | null {
+  const source = tree.sourceOf(uid)
+  return source ? { url: source.url, name: sourceName(source) } : null
+}
 const activeId = computed(() => (focused.value === null ? undefined : `node-${focused.value}`))
 const focusedIndex = computed(() => tree.rows.value.findIndex((row) => row.node.uid === focused.value))
 const hasQuery = computed(() => searchText.value.trim() !== '')
 
-/** Catalog names repeat the addon's name, which is already on the tab. */
-const shortLabel = (label: string) => (addonName.value && label !== addonName.value ? label.replace(`${addonName.value} `, '') : label)
-const trailOf = (row: VisibleRow) => row.trail?.map(shortLabel).join(' › ')
+/** Catalog names repeat the addon's name, which is already above them. */
+const browseAddon = computed(() => browseChain.value[0]?.node.label ?? '')
+const shortLabel = (label: string) => withoutAddonName(label, browseAddon.value)
+const trailOf = (row: VisibleRow) => {
+  const name = addonOf(row.node.uid)?.name ?? ''
+  return row.trail?.map((label) => withoutAddonName(label, name)).join(' › ')
+}
 
 /** Take the keyboard, unless this tab finished loading while another URL is being typed. */
 async function focusTree() {
@@ -81,20 +100,26 @@ async function focusTree() {
   treeEl.value?.focus()
 }
 
-watch(tree.manifestUrl, (manifestUrl) => {
-  if (!manifestUrl) return
-  focused.value = tree.rows.value[0]?.node.uid ?? null
-  browseUid.value = tree.roots.value[0]?.uid ?? null
-  focusTree()
-})
-
-// Runs after the watcher above, so a watched folder's selection wins over the root's.
+// A root that's gone was loaded again: start over from the first one.
 watch(
-  [tree.manifestUrl, props.tab.path],
-  ([manifestUrl, path]) => {
-    if (!manifestUrl || !path) return
-    props.tab.path.value = null
-    browseTo(path)
+  () => tree.roots.value[0]?.uid,
+  (uid) => {
+    if (uid === undefined) return
+    if (focused.value === null || !tree.rowOf(focused.value)) focused.value = tree.rows.value[0]?.node.uid ?? null
+    if (browseUid.value === null || !tree.rowOf(browseUid.value)) browseUid.value = uid
+    focusTree()
+  },
+  { immediate: true },
+)
+
+// Runs after the watcher above, so the folder asked for wins over the root.
+let pathShown = false
+watch(
+  () => tree.roots.value.length,
+  (count) => {
+    if (!count || !props.path || pathShown) return
+    pathShown = true
+    browseTo(props.path)
   },
   { immediate: true },
 )
@@ -119,7 +144,7 @@ watch(
   () => props.view,
   (view) => {
     hovered.value = null
-    if (view === 'list' && tree.filters.value.size) tree.startSearch()
+    if (view === 'list' && filters.value.size) tree.startSearch()
   },
 )
 
@@ -136,7 +161,12 @@ function onGlobalKeydown(event: KeyboardEvent) {
   }
 }
 
-onActivated(() => window.addEventListener('keydown', onGlobalKeydown))
+onActivated(() => {
+  window.addEventListener('keydown', onGlobalKeydown)
+  // Other pages may have searched the same addons.
+  tree.setQuery(searchText.value)
+  tree.setFilters(filters.value)
+})
 onDeactivated(() => window.removeEventListener('keydown', onGlobalKeydown))
 
 onBeforeUnmount(() => {
@@ -149,11 +179,16 @@ function clearSearch() {
   searchText.value = ''
 }
 
+function setFilters(next: Iterable<LinkFilter>) {
+  filters.value = new Set(next)
+  tree.setFilters(filters.value)
+}
+
 function toggleFilter(id: LinkFilter) {
-  const next = new Set(tree.filters.value)
+  const next = new Set(filters.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
-  tree.setFilters(next)
+  setFilters(next)
   // Filters need to see what isn't loaded yet, same as a search.
   if (next.size && (props.view === 'list' || hasQuery.value)) tree.startSearch()
 }
@@ -167,7 +202,7 @@ function goToFirstMatch() {
 
 async function browseTo(path: PathSegment[]) {
   clearSearch()
-  tree.setFilters([])
+  setFilters([])
   actionError.value = null
   const result = await tree.reveal(path)
   if (!result) return
@@ -188,13 +223,15 @@ function posterFor(node: TreeNode): string | null {
   return null
 }
 
+const watchUrl = (row: VisibleRow) => addonOf(row.node.uid)?.url ?? null
+
 async function toggleWatch(row: VisibleRow) {
-  const manifestUrl = tree.manifestUrl.value
-  if (!manifestUrl || !addonName.value) return
+  const addon = addonOf(row.node.uid)
+  if (!addon) return
   actionError.value = null
-  const watching = watchlist.has(manifestUrl, row.path)
+  const watching = watchlist.has(addon.url, row.path)
   try {
-    await watchlist.toggle({ url: manifestUrl, addonName: addonName.value, path: row.path, poster: posterFor(row.node) })
+    await watchlist.toggle({ url: addon.url, addonName: addon.name, path: row.path, poster: posterFor(row.node) })
     showToast(`${watching ? 'Stopped watching' : 'Watching'} ${row.node.label}`)
   } catch (cause) {
     actionError.value = `Couldn't update the watchlist: ${cause instanceof Error ? cause.message : String(cause)}`
@@ -230,12 +267,11 @@ async function openLink(row: VisibleRow, kind?: LinkKind) {
   }
 }
 
-function downloadDetails(row: Pick<VisibleRow, 'node' | 'parent' | 'path'>, url: string) {
-  const addonUrl = tree.manifestUrl.value
-  if (!addonUrl || !addonName.value) return null
+function downloadDetails(row: Pick<VisibleRow, 'node' | 'parent' | 'path'>, url: string, addon = addonOf(row.node.uid)) {
+  if (!addon) return null
   // An episode isn't part of the path, so name it here.
   const name = row.parent?.kind === 'video' ? `${row.parent.label} › ${row.node.label}` : row.node.label
-  return { url, name, addonUrl, addonName: addonName.value, path: row.path }
+  return { url, name, addonUrl: addon.url, addonName: addon.name, path: row.path }
 }
 
 /** Anything that might hold a video downloads here. Everything else, and everything in a browser, opens outside. */
@@ -279,12 +315,12 @@ function checkRow(row: VisibleRow, event: MouseEvent | null, order: VisibleRow[]
 }
 
 /** Links under one film or episode are copies of the same thing, unless picked out one by one. */
-const titleOf = ({ parent, explicit }: Pick<CollectedLink, 'parent' | 'explicit'>) =>
+const titleOf = ({ parent, explicit }: Pick<SourcedLink, 'parent' | 'explicit'>) =>
   !explicit && (parent.kind === 'item' || parent.kind === 'video') ? String(parent.uid) : null
 
 /** A link ready for choosing between copies. */
-function candidate(link: CollectedLink) {
-  const details = link.node.url ? downloadDetails(link, link.node.url) : null
+function candidate(link: SourcedLink) {
+  const details = link.node.url ? downloadDetails(link, link.node.url, { url: link.source.url, name: sourceName(link.source) }) : null
   return details ? [{ ...details, title: titleOf(link), meta: link.node.meta }] : []
 }
 
@@ -495,13 +531,13 @@ const resultLabel = computed(() => {
 })
 
 const searchProgress = computed(() => {
-  const { status, loads } = tree.search
+  const { status, loads } = tree.search.value
   if (status === 'running') return `Searching… ${loads} loaded`
   if (status === 'stopped') return 'Stopped, results are partial'
   if (status === 'limit') return `Paused after ${MAX_SEARCH_LOADS} loads, results are partial`
   return ''
 })
-const searchFailures = computed(() => (tree.search.failed ? `${tree.search.failed} couldn't load` : ''))
+const searchFailures = computed(() => (tree.search.value.failed ? `${tree.search.value.failed} couldn't load` : ''))
 
 // Thumbnails: one folder at a time.
 
@@ -512,7 +548,7 @@ const browseChildren = computed(() => (browseUid.value === null ? [] : tree.chil
 const gridRows = computed(() => (hasQuery.value ? tree.rows.value.filter((row) => row.trail !== undefined) : browseChildren.value))
 
 const passesFilter = (row: VisibleRow) => {
-  const allowed = tree.filters.value
+  const allowed = filters.value
   return !allowed.size || tree.isMatch(row.node)
 }
 const browseStreams = computed(() => gridRows.value.filter((row) => row.node.kind === 'link' && passesFilter(row)))
@@ -577,12 +613,12 @@ watch(
 </script>
 
 <template>
-  <div class="addon" role="tabpanel">
+  <div class="addon">
     <SearchBar
       v-if="tree.roots.value.length"
       ref="searchBar"
       v-model="searchText"
-      :filters="tree.filters.value"
+      :filters="filters"
       @filter="toggleFilter"
       @enter="goToFirstMatch"
       @clear="clearSearch"
@@ -594,8 +630,8 @@ watch(
           <span class="result-label mono">{{ resultLabel }}</span>
           <span v-if="searchProgress" class="result-note">{{ searchProgress }}</span>
           <span v-if="searchFailures" class="result-note failed">{{ searchFailures }}</span>
-          <button v-if="tree.search.status === 'running'" class="btn result-action" type="button" @click="tree.stopSearch()">Stop</button>
-          <button v-else-if="tree.search.status === 'stopped' || tree.search.status === 'limit'" class="btn result-action" type="button" @click="tree.startSearch()">Continue</button>
+          <button v-if="tree.search.value.status === 'running'" class="btn result-action" type="button" @click="tree.stopSearch()">Stop</button>
+          <button v-else-if="tree.search.value.status === 'stopped' || tree.search.value.status === 'limit'" class="btn result-action" type="button" @click="tree.startSearch()">Continue</button>
         </div>
         <template v-for="row in tree.rows.value" :key="row.node.uid">
           <StreamRow
@@ -618,7 +654,7 @@ watch(
             :row="row"
             :focused="usingKeys && row.node.uid === focused"
             :expandable="tree.isExpandable(row.node)"
-            :watched="isFolderNode(row.node) && watchlist.has(tree.manifestUrl.value, row.path)"
+            :watched="isFolderNode(row.node) && watchlist.has(watchUrl(row), row.path)"
             :trail="trailOf(row)"
             @activate="clickRow(row)"
             @toggle="focused = row.node.uid; tree.toggle(row.node)"
@@ -634,8 +670,8 @@ watch(
           <span class="result-label mono">{{ resultLabel }}</span>
           <span v-if="searchProgress" class="result-note">{{ searchProgress }}</span>
           <span v-if="searchFailures" class="result-note failed">{{ searchFailures }}</span>
-          <button v-if="tree.search.status === 'running'" class="btn result-action" type="button" @click="tree.stopSearch()">Stop</button>
-          <button v-else-if="tree.search.status === 'stopped' || tree.search.status === 'limit'" class="btn result-action" type="button" @click="tree.startSearch()">Continue</button>
+          <button v-if="tree.search.value.status === 'running'" class="btn result-action" type="button" @click="tree.stopSearch()">Stop</button>
+          <button v-else-if="tree.search.value.status === 'stopped' || tree.search.value.status === 'limit'" class="btn result-action" type="button" @click="tree.startSearch()">Continue</button>
         </div>
         <BrowseGrid
           :current="browseRow"
@@ -650,7 +686,7 @@ watch(
           :error="browseRow?.node.error ?? null"
           :all-selected="allBrowseSelected"
           :copied="copied"
-          :is-watched="(row) => watchlist.has(tree.manifestUrl.value, row.path)"
+          :is-watched="(row) => watchlist.has(watchUrl(row), row.path)"
           :download-of="(row) => downloads.find(row.node.url)"
           :stage-of="(row) => downloads.stageOf(row.node.url)"
           @up="browseUp"

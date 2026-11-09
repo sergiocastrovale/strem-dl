@@ -161,7 +161,7 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** Shared by all trees: rows of different tabs are in the same document, and their ids must not clash. */
+/** Shared by all trees: rows of different addons are in the same document, and their ids must not clash. */
 let nextUid = 1
 
 export function useTree(fetchJson: FetchJson) {
