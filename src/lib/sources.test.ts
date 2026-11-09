@@ -29,19 +29,19 @@ function setup(routes: Record<string, () => unknown> = {}) {
     if (url === B) return manifest('Beta')
     throw new Error('HTTP 404')
   }
-  const saved = ref<{ url: string; name: string }[]>([])
+  const addons = ref<{ url: string; name: string }[]>([])
   const opened: string[] = []
-  const sources = createSources(fetcher, saved, async (url, name) => {
+  const sources = createSources(fetcher, addons, async (url, name) => {
     opened.push(name)
-    saved.value = [...saved.value, { url, name }]
+    addons.value = [...addons.value, { url, name }]
   })
-  return { sources, saved, calls, opened }
+  return { sources, addons, calls, opened }
 }
 
 describe('sources', () => {
-  it('loads every saved addon, in order', async () => {
-    const { sources, saved } = setup()
-    saved.value = [
+  it('loads every added addon, in order', async () => {
+    const { sources, addons } = setup()
+    addons.value = [
       { url: B, name: 'Beta' },
       { url: A, name: 'Alpha' },
     ]
@@ -60,7 +60,7 @@ describe('sources', () => {
     expect(calls).toEqual([A])
   })
 
-  it("forgets an addon that won't load and was never saved", async () => {
+  it("forgets an addon that won't load and was never added", async () => {
     const { sources, opened } = setup()
     await expect(sources.open('https://c.test')).rejects.toThrow('HTTP 404')
     expect(opened).toEqual([])
@@ -68,10 +68,10 @@ describe('sources', () => {
     await expect(sources.open('nope')).rejects.toThrow('Not a valid URL')
   })
 
-  it('drops an addon removed from Saved', async () => {
-    const { sources, saved } = setup()
+  it('drops an addon removed from Addons', async () => {
+    const { sources, addons } = setup()
     await sources.open(A)
-    saved.value = []
+    addons.value = []
     await nextTick()
     expect(sources.list.value).toEqual([])
     expect(sources.get(A)).toBeNull()

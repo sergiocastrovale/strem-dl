@@ -59,6 +59,12 @@ fn main() {
             sql: include_str!("../migrations/008_saved.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "rename saved to addons",
+            sql: include_str!("../migrations/009_addons.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

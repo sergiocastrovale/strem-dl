@@ -33,8 +33,16 @@ const props = defineProps<{
   view: HomeViewMode
   /** A folder to browse to as soon as the addon is open. */
   path?: PathSegment[] | null
+  /** Placeholder for the search field. */
+  searchLabel?: string
 }>()
 defineEmits<{ retry: [] }>()
+const slots = defineSlots<{
+  /** Beside the search field. */
+  toolbar?: () => unknown
+  /** Shown instead of the thumbnail grid while nothing is searched or filtered. */
+  browse?: () => unknown
+}>()
 
 const SEARCH_DELAY_MS = 300
 /** Ask first from this many files: the queue would start straight away. */
@@ -178,6 +186,8 @@ onBeforeUnmount(() => {
 function clearSearch() {
   searchText.value = ''
 }
+
+defineExpose({ clearSearch })
 
 function setFilters(next: Iterable<LinkFilter>) {
   filters.value = new Set(next)
@@ -619,10 +629,13 @@ watch(
       ref="searchBar"
       v-model="searchText"
       :filters="filters"
+      :placeholder="searchLabel"
       @filter="toggleFilter"
       @enter="goToFirstMatch"
       @clear="clearSearch"
-    />
+    >
+      <slot name="toolbar" />
+    </SearchBar>
 
     <div v-if="tree.roots.value.length" class="body">
       <div v-if="view === 'list'" ref="treeEl" class="scroller tree" :class="{ 'using-keys': usingKeys }" role="tree" tabindex="0" :aria-activedescendant="activeId" @keydown="onKeydown" @scroll.passive="hovered = null">
@@ -664,6 +677,8 @@ watch(
           />
         </template>
       </div>
+
+      <slot v-else-if="slots.browse && !hasQuery" name="browse" />
 
       <div v-else class="scroller grid-scroller">
         <div v-if="hasQuery" class="results flush">
@@ -734,6 +749,7 @@ watch(
         <button class="btn float-action" type="button" @click="notice = null">Dismiss</button>
       </div>
     </div>
+    <div v-else-if="slots.browse" class="body"><slot name="browse" /></div>
     <div v-else class="empty" :class="{ failed: tree.error.value }">
       <template v-if="tree.error.value">
         <span>{{ tree.error.value }}</span>

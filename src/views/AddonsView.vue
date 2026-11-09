@@ -1,19 +1,60 @@
 <script setup lang="ts">
 import { Box, Trash2 } from '@lucide/vue'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSaved } from '../lib/saved'
+import UrlInput from '../components/UrlInput.vue'
+import { useAddons } from '../lib/addons'
+import { sourceName, useSources } from '../lib/sources'
+import { showToast } from '../lib/toast'
+import { useUrlHistory } from '../lib/urlHistory'
 
-const saved = useSaved()
+const addons = useAddons()
+const sources = useSources()
+const history = useUrlHistory()
 const router = useRouter()
+const url = ref('')
+const input = ref<InstanceType<typeof UrlInput>>()
 const error = ref<string | null>(null)
+const opening = ref(false)
+
+const messageOf = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
+
+onMounted(() => {
+  if (!addons.items.value.length) input.value?.focus()
+})
+
+/** Load the addon, which adds it to the list. */
+async function submit() {
+  if (!url.value.trim() || opening.value) return
+  error.value = null
+  opening.value = true
+  try {
+    const source = await sources.open(url.value)
+    url.value = ''
+    input.value?.blur()
+    showToast(`Added ${sourceName(source)}`)
+  } catch (cause) {
+    error.value = messageOf(cause)
+  } finally {
+    opening.value = false
+  }
+}
+
+async function forgetUrl(target: string) {
+  error.value = null
+  try {
+    await history.remove(target)
+  } catch (cause) {
+    error.value = `Couldn't remove the URL: ${messageOf(cause)}`
+  }
+}
 
 async function remove(target: string) {
   error.value = null
   try {
-    await saved.remove(target)
+    await addons.remove(target)
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = messageOf(cause)
   }
 }
 
@@ -24,13 +65,25 @@ function open(target: string) {
 
 <template>
   <div class="page">
-    <h1 class="page-title">Saved</h1>
+    <h1 class="page-title">Addons</h1>
 
-    <div v-if="error || saved.error.value" class="note failed" role="alert">{{ error || saved.error.value }}</div>
+    <form @submit.prevent="submit">
+      <UrlInput
+        ref="input"
+        v-model="url"
+        :entries="history.entries.value"
+        placeholder="Paste an addon URL and press Enter to add it"
+        @pick="submit"
+        @remove="forgetUrl"
+      />
+    </form>
 
-    <div v-if="saved.items.value.length" class="list">
+    <div v-if="opening" class="note" role="status">Loading the addon…</div>
+    <div v-if="error || addons.error.value" class="note failed" role="alert">{{ error || addons.error.value }}</div>
+
+    <div v-if="addons.items.value.length" class="list">
       <div
-        v-for="item in saved.items.value"
+        v-for="item in addons.items.value"
         :key="item.url"
         class="row"
         role="button"
@@ -44,12 +97,12 @@ function open(target: string) {
           <span class="name">{{ item.name }}</span>
           <span class="url mono">{{ item.url }}</span>
         </span>
-        <button class="remove" type="button" :aria-label="`Remove ${item.name} from Saved`" title="Remove" @click.stop="remove(item.url)">
+        <button class="remove" type="button" :aria-label="`Remove ${item.name} from Addons`" title="Remove" @click.stop="remove(item.url)">
           <Trash2 :size="14" />
         </button>
       </div>
     </div>
-    <div v-else class="empty">Nothing saved yet. Addons you open on Home show up here.</div>
+    <div v-else class="empty">No addons yet. Paste an addon URL above to add one.</div>
   </div>
 </template>
 

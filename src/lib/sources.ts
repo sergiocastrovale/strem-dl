@@ -1,6 +1,6 @@
 import { shallowRef, watch, type Ref } from 'vue'
 import { fetchJson } from './http'
-import { normalizeUrl, useSaved } from './saved'
+import { normalizeUrl, useAddons } from './addons'
 import { useUrlHistory } from './urlHistory'
 import { useTree, type FetchJson } from './useTree'
 
@@ -24,16 +24,16 @@ export function sourceName(source: Source): string {
 }
 
 /**
- * Every saved addon, loaded as soon as it's known. Opening a new one loads it, and
- * once it has loaded `onOpened` saves it, which puts it among the rest.
+ * Every added addon, loaded as soon as it's known. Opening a new one loads it, and
+ * once it has loaded `onOpened` adds it, which puts it among the rest.
  */
 export function createSources(
   fetcher: FetchJson,
-  saved: Ref<{ url: string }[]>,
+  addons: Ref<{ url: string }[]>,
   onOpened: (url: string, name: string) => Promise<void>,
 ) {
   const known = new Map<string, Source>()
-  /** Opened but not saved yet, in the order they were opened. */
+  /** Opened but not added yet, in the order they were opened. */
   const pending = new Set<string>()
   const list = shallowRef<Source[]>([])
 
@@ -45,8 +45,8 @@ export function createSources(
   }
 
   function sync() {
-    const savedUrls = saved.value.map((item) => item.url)
-    const urls = [...savedUrls, ...[...pending].filter((url) => !savedUrls.includes(url))]
+    const addonUrls = addons.value.map((item) => item.url)
+    const urls = [...addonUrls, ...[...pending].filter((url) => !addonUrls.includes(url))]
     for (const [url, source] of known) {
       if (urls.includes(url)) continue
       source.tree.stopSearch()
@@ -55,7 +55,7 @@ export function createSources(
     list.value = urls.map((url) => known.get(url) ?? create(url))
   }
 
-  watch(saved, sync, { immediate: true })
+  watch(addons, sync, { immediate: true })
 
   function get(input: string): Source | null {
     try {
@@ -72,8 +72,8 @@ export function createSources(
   }
 
   /**
-   * The addon at this address, loaded, and saved. Throws if the address isn't an addon's
-   * or it won't load; one that was never saved is then forgotten.
+   * The addon at this address, loaded, and added. Throws if the address isn't an addon's
+   * or it won't load; one that was never added is then forgotten.
    */
   async function open(input: string): Promise<Source> {
     const url = normalizeUrl(input)
@@ -104,10 +104,10 @@ let shared: ReturnType<typeof createSources> | undefined
 
 export function useSources() {
   if (!shared) {
-    const saved = useSaved()
+    const addons = useAddons()
     const history = useUrlHistory()
-    shared = createSources(fetchJson, saved.items, async (url, name) => {
-      await saved.add(url, name)
+    shared = createSources(fetchJson, addons.items, async (url, name) => {
+      await addons.add(url, name)
       await history.record(url, name)
     })
   }

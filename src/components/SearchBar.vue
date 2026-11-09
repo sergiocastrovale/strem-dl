@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import { LINK_FILTERS, type LinkFilter } from '../lib/addon'
 
 const model = defineModel<string>({ required: true })
-defineProps<{ filters: Set<LinkFilter> }>()
+withDefaults(defineProps<{ filters: Set<LinkFilter>; placeholder?: string }>(), { placeholder: 'Search this source' })
 defineEmits<{ enter: []; clear: []; filter: [id: LinkFilter] }>()
 
 const input = ref<HTMLInputElement>()
@@ -21,8 +21,8 @@ defineExpose({ focus: () => input.value?.focus() })
         type="text"
         spellcheck="false"
         autocomplete="off"
-        aria-label="Search this source"
-        placeholder="Search this source"
+        :aria-label="placeholder"
+        :placeholder="placeholder"
         @keydown.enter.prevent="$emit('enter')"
         @keydown.down.prevent="$emit('enter')"
         @keydown.esc.prevent="$emit('clear')"
@@ -42,6 +42,7 @@ defineExpose({ focus: () => input.value?.focus() })
         {{ filter.label }}
       </button>
     </div>
+    <slot />
   </div>
 </template>
 

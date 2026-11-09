@@ -15,7 +15,7 @@ Posters come from each addon. The thumbnails above show the app's own placeholde
 
 | | Web | Desktop |
 |---|---|---|
-| Search, saved addons, watchlist | Yes | Yes |
+| Search, addons, watchlist | Yes | Yes |
 | Addons without CORS headers | Fail | Work |
 | Double-clicking a link | Opens it in a new tab | Downloads it |
 | Downloads, queue, resume | No | Yes |
@@ -130,7 +130,7 @@ You can opt to install later via Settings page.
 
 ## Usage
 
-Paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed (`https://`, or `http://` for localhost and IP addresses), and the field shows the completed address in grey: **Tab** or **→** fills it in. Every addon you open is saved, and Home loads all saved addons at once. In thumbnail view each addon shows its folders with their first six titles; **View all** lists the whole folder, loading more as you scroll. List view shows every saved addon as one tree.
+On the Addons page, paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed (`https://`, or `http://` for localhost and IP addresses), and the field shows the completed address in grey: **Tab** or **→** fills it in. Every URL you enter is added to the list, and Home loads all your addons at once. Search on Home looks through all of them together. In thumbnail view each addon shows its folders with their first six titles; **View all** lists the whole folder, loading more as you scroll. List view shows every addon as one tree.
 
 Downloads depend on the type of link:
 

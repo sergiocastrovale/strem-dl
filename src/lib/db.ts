@@ -1,6 +1,6 @@
 import type { PathSegment } from './addon'
 
-export interface SavedAddon {
+export interface AddonEntry {
   /** Normalized `<base>/manifest.json`. */
   url: string
   name: string
@@ -77,9 +77,9 @@ export function watchPathKey(path: PathSegment[]): string {
 /** Saved data. SQLite on desktop, local storage in a browser (see platform.ts). */
 export interface Db {
   /** Oldest first. */
-  saved(): Promise<SavedAddon[]>
-  addSaved(addon: SavedAddon): Promise<void>
-  removeSaved(url: string): Promise<void>
+  addons(): Promise<AddonEntry[]>
+  addAddon(addon: AddonEntry): Promise<void>
+  removeAddon(url: string): Promise<void>
   /** Most recently used first. */
   history(): Promise<HistoryEntry[]>
   recordHistory(entry: HistoryEntry): Promise<void>
@@ -106,12 +106,12 @@ export interface SqlConnection {
 // Columns keep their original names (source_url, source_name): renaming them needs a migration.
 export function sqliteDb(sql: SqlConnection): Db {
   return {
-    saved: () => sql.select<SavedAddon[]>('SELECT url, name FROM saved ORDER BY rowid'),
-    async addSaved({ url, name }) {
-      await sql.execute('INSERT OR IGNORE INTO saved (url, name) VALUES (?, ?)', [url, name])
+    addons: () => sql.select<AddonEntry[]>('SELECT url, name FROM addons ORDER BY rowid'),
+    async addAddon({ url, name }) {
+      await sql.execute('INSERT OR IGNORE INTO addons (url, name) VALUES (?, ?)', [url, name])
     },
-    async removeSaved(url) {
-      await sql.execute('DELETE FROM saved WHERE url = ?', [url])
+    async removeAddon(url) {
+      await sql.execute('DELETE FROM addons WHERE url = ?', [url])
     },
     history: () =>
       sql.select<HistoryEntry[]>(
@@ -224,9 +224,9 @@ export function sqliteDb(sql: SqlConnection): Db {
   }
 }
 
-const SAVED_KEY = 'strem-dl:saved'
-/** Saved addons were kept under this key before the rename. */
-const OLD_FAVORITES_KEY = 'strem-dl:favorites'
+const ADDONS_KEY = 'strem-dl:addons'
+/** Addons were kept under these keys before the renames, newest first. */
+const OLD_ADDONS_KEYS = ['strem-dl:saved', 'strem-dl:favorites']
 const HISTORY_KEY = 'strem-dl:url-history'
 const WATCHLIST_KEY = 'strem-dl:watchlist'
 const DOWNLOADS_KEY = 'strem-dl:downloads'
@@ -259,13 +259,13 @@ export function storageDb(storage: Pick<Storage, 'getItem' | 'setItem' | 'remove
     )
   }
 
-  function readSaved(): SavedAddon[] {
-    if (storage.getItem(SAVED_KEY) === null && storage.getItem(OLD_FAVORITES_KEY) !== null) {
-      const old = read<SavedAddon>(OLD_FAVORITES_KEY)
-      storage.setItem(SAVED_KEY, JSON.stringify(old))
-      storage.removeItem(OLD_FAVORITES_KEY)
+  function readAddons(): AddonEntry[] {
+    if (storage.getItem(ADDONS_KEY) === null) {
+      const oldKey = OLD_ADDONS_KEYS.find((key) => storage.getItem(key) !== null)
+      if (oldKey) storage.setItem(ADDONS_KEY, JSON.stringify(read<AddonEntry>(oldKey)))
     }
-    return read<SavedAddon>(SAVED_KEY)
+    for (const key of OLD_ADDONS_KEYS) storage.removeItem(key)
+    return read<AddonEntry>(ADDONS_KEY)
   }
 
   function readWatchlist(): WatchEntry[] {
@@ -300,15 +300,15 @@ export function storageDb(storage: Pick<Storage, 'getItem' | 'setItem' | 'remove
   }
 
   return {
-    saved: async () => readSaved(),
-    async addSaved(addon) {
-      const items = readSaved()
+    addons: async () => readAddons(),
+    async addAddon(addon) {
+      const items = readAddons()
       if (items.some((item) => item.url === addon.url)) return
-      storage.setItem(SAVED_KEY, JSON.stringify([...items, addon]))
+      storage.setItem(ADDONS_KEY, JSON.stringify([...items, addon]))
     },
-    async removeSaved(url) {
-      const items = readSaved().filter((item) => item.url !== url)
-      storage.setItem(SAVED_KEY, JSON.stringify(items))
+    async removeAddon(url) {
+      const items = readAddons().filter((item) => item.url !== url)
+      storage.setItem(ADDONS_KEY, JSON.stringify(items))
     },
     history: async () => read<HistoryEntry>(HISTORY_KEY),
     async recordHistory(entry) {

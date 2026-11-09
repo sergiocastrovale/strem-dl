@@ -305,7 +305,7 @@ function mosaic(node: TreeNode): (TreeNode | null)[] {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(148px, 295px));
   gap: 20px 16px;
 }
 

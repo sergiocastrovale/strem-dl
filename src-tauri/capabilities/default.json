@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Move, resize and close the window from its own title bar, fetch addon JSON from any host, copy stream links or open them in the system handler, check whether a link is a file, pick a download folder and show saved files in it, and save saved addons, URL history, the watchlist, downloads and settings in SQLite.",
+  "description": "Move, resize and close the window from its own title bar, fetch addon JSON from any host, copy stream links or open them in the system handler, check whether a link is a file, pick a download folder and show saved files in it, and save addons, URL history, the watchlist, downloads and settings in SQLite.",
   "windows": ["main"],
   "permissions": [
     "core:default",

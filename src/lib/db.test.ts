@@ -7,7 +7,7 @@ import { sqliteDb, storageDb, type Db } from './db'
 // Runs the migration the desktop app ships, on a real SQLite engine.
 function sqlite(): Db {
   const db = new DatabaseSync(':memory:')
-  for (const file of ['001_init.sql', '002_watchlist.sql', '003_downloads.sql', '004_transfers_settings.sql', '005_media.sql', '006_copies.sql', '007_watch_poster.sql', '008_saved.sql']) {
+  for (const file of ['001_init.sql', '002_watchlist.sql', '003_downloads.sql', '004_transfers_settings.sql', '005_media.sql', '006_copies.sql', '007_watch_poster.sql', '008_saved.sql', '009_addons.sql']) {
     db.exec(readFileSync(`src-tauri/migrations/${file}`, 'utf8'))
   }
   return sqliteDb({
@@ -32,17 +32,17 @@ describe.each([
   ['sqlite', sqlite],
   ['storage', storage],
 ])('%s db', (_, create) => {
-  it('adds saved addons in order, ignores duplicates, removes', async () => {
+  it('adds addons in order, ignores duplicates, removes', async () => {
     const db = create()
-    await db.addSaved({ url: 'a', name: 'A' })
-    await db.addSaved({ url: 'b', name: 'B' })
-    await db.addSaved({ url: 'a', name: 'A again' })
-    expect(plain(await db.saved())).toEqual([
+    await db.addAddon({ url: 'a', name: 'A' })
+    await db.addAddon({ url: 'b', name: 'B' })
+    await db.addAddon({ url: 'a', name: 'A again' })
+    expect(plain(await db.addons())).toEqual([
       { url: 'a', name: 'A' },
       { url: 'b', name: 'B' },
     ])
-    await db.removeSaved('a')
-    expect(plain(await db.saved())).toEqual([{ url: 'b', name: 'B' }])
+    await db.removeAddon('a')
+    expect(plain(await db.addons())).toEqual([{ url: 'b', name: 'B' }])
   })
 
   it('keeps one history entry per url, most recent first', async () => {
@@ -175,21 +175,21 @@ describe('storage db', () => {
     expect(data.get('strem-dl:downloads')).not.toContain('sourceName')
   })
 
-  it('moves addons saved under the old favorites key', async () => {
-    const data = new Map<string, string>([['strem-dl:favorites', JSON.stringify([{ url: 'a', name: 'A' }])]])
+  it.each(['strem-dl:favorites', 'strem-dl:saved'])('moves addons kept under the old %s key', async (oldKey) => {
+    const data = new Map<string, string>([[oldKey, JSON.stringify([{ url: 'a', name: 'A' }])]])
     const db = storageDb({
       getItem: (k) => data.get(k) ?? null,
       setItem: (k, v) => void data.set(k, v),
       removeItem: (k) => void data.delete(k),
     })
-    expect(await db.saved()).toEqual([{ url: 'a', name: 'A' }])
-    expect(data.has('strem-dl:favorites')).toBe(false)
-    expect(data.has('strem-dl:saved')).toBe(true)
+    expect(await db.addons()).toEqual([{ url: 'a', name: 'A' }])
+    expect(data.has(oldKey)).toBe(false)
+    expect(data.has('strem-dl:addons')).toBe(true)
   })
 
   it('treats corrupt data as empty', async () => {
     const db = storageDb({ getItem: () => '{nope', setItem: () => {}, removeItem: () => {} })
-    expect(await db.saved()).toEqual([])
+    expect(await db.addons()).toEqual([])
     expect(await db.history()).toEqual([])
   })
 })
