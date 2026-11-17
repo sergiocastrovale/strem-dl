@@ -1,17 +1,22 @@
 # strem-dl
 
-Browse any [Stremio addon](https://github.com/Stremio/stremio-addon-sdk) as a directory tree, down to its stream links, and save the video. It doesn't play anything and isn't affiliated with Stremio. Only download what you have the right to.
+Browse any [Stremio addon](https://github.com/Stremio/stremio-addon-sdk) as a directory tree. Unlike in the Stremio app, with strem-dl you can:
 
-## Screenshots
+* Select from multiple sources at once
 
-| | |
-|---|---|
-| ![Browsing an addon as a list, with the details of a stream on hover](docs/screenshots/list.png) | ![Browsing an addon as thumbnails, one folder at a time](docs/screenshots/thumbnails.png) |
-| ![The download queue with the details of a download](docs/screenshots/downloads.png) | |
+* Bulk download entire folders (i.e. a full season)
 
-Posters come from each addon. The thumbnails above show the app's own placeholders instead.
+* Download from third-party hosted platforms automatically - in cases where multiple sources are available, you can configure where to pick from
 
-## Web or desktop
+Only download what you have the right to. Images below are mock examples, not real content.
+
+![Browsing an addon](docs/screenshots/1.png)
+![Picking files for bulk download](docs/screenshots/2.png)
+![The download queue with the details of a download](docs/screenshots/3.png)
+
+## App vs. web client
+
+Strem-dl comes in two flavours: the standalone app (Windows, Linux, MacOS) and the web client which requires no installation at all.
 
 | | Web | Desktop |
 |---|---|---|
@@ -24,69 +29,13 @@ Posters come from each addon. The thumbnails above show the app's own placeholde
 | Setup | None | yt-dlp and ffmpeg, on first launch |
 | Saved in | Local storage | SQLite (`strem-dl.db`) |
 
-A web page can't see what other pages load, run programs or save to disk, so app-driven video downloads need the desktop app. Both look the same: controls a browser can't use stay in place, disabled.
+A web page can't see what other pages load, run programs or save to disk, so app-driven video downloads need the desktop app.
 
-## Installation
+## Installing
 
-### Web
+Head over to the [releases page](https://github.com/sergiocastrovale/strem-dl/releases) and download. 
 
-```bash
-pnpm install
-pnpm dev    # http://localhost:1420
-pnpm build  # static site in dist/
-```
-
-### Desktop
-
-```bash
-pnpm install
-pnpm tauri dev    # run from source
-pnpm tauri:wsl    # same, hiding WSL's harmless "Dropped Escape call" GPU message
-pnpm tauri build  # packages in src-tauri/target/release/bundle/
-```
-
-Build on the OS you're targeting.
-
-| Platform | Tools | Packages |
-|---|---|---|
-| Linux | See below | `.AppImage`, `.deb`, `.rpm` |
-| Windows | See below. Use a Windows drive, not WSL | `-setup.exe`, `.msi` |
-| macOS | `xcode-select --install`, then `brew install node pnpm rust` | `.dmg`, `.app` |
-
-macOS needs the Xcode command line tools and [Homebrew](https://brew.sh):
-
-```bash
-xcode-select --install
-brew install node pnpm rustup
-rustup default stable
-```
-
-Debian or Ubuntu, plus [Rust](https://rustup.rs):
-
-```bash
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
-```
-
-Windows, (in PowerShell):
-
-```powershell
-winget install OpenJS.NodeJS.LTS pnpm.pnpm Rustlang.Rustup
-winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-rustup default stable
-```
-
-**Tests**: `pnpm test`, and `cargo test` in `src-tauri`.
-
-### Building on a Mac
-
-```bash
-pnpm install
-pnpm tauri build    # builds for this Mac's chip
-```
-
-Output is in `src-tauri/target/release/bundle/`: `dmg/strem-dl_<version>_<arch>.dmg` and `macos/strem-dl.app`. `aarch64` is Apple Silicon, `x64` is Intel. The build is ad-hoc signed only, not notarized. To build both chips, add the other target with `rustup target add x86_64-apple-darwin` (or `aarch64-apple-darwin`) and run `pnpm tauri build --target <that target>`. Or run **Build macOS** under Actions, which builds both.
-
-### Installing on a Mac
+### MacOS
 
 1. Download the `.dmg` for your chip from the [releases](../../releases): `aarch64` for Apple Silicon (M1 and later), `x64` for Intel.
 2. Open it and drag **strem-dl** into **Applications**.
@@ -97,19 +46,6 @@ Output is in `src-tauri/target/release/bundle/`: `dmg/strem-dl_<version>_<arch>.
    ```
 
    Or right-click the app, choose **Open**, then **Open** again. On recent macOS, use **System Settings > Privacy & Security > Open Anyway**.
-
-### Building Linux and Windows yourself
-
-To save GitHub minutes, build these on your own machine instead of the **Build Linux** and **Build Windows** workflows. macOS can only be built on GitHub.
-
-```bash
-pnpm build:local             # tests, builds, and checks the result for personal details
-pnpm build:local --upload    # ...then adds the packages to the draft release, creating it if needed
-```
-
-It rewrites your home folder, cargo folder and project folder out of the build, so your username isn't inside the program, then searches the program, web files and unpacked packages for your username, home path and any other git email, and stops if it finds one. It only uploads from a clean, pushed commit, to a draft for that same commit, so run it from the same commit on each system. Windows needs the tools listed under Installation, and the repo on a Windows drive.
-
-The packages aren't signed, so Windows SmartScreen warns about them. macOS blocks the app until its quarantine flag is removed, with `xattr -cr /Applications/strem-dl.app`.
 
 ## First launch (desktop)
 
@@ -130,7 +66,7 @@ You can opt to install later via Settings page.
 
 ## Usage
 
-On the Addons page, paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed (`https://`, or `http://` for localhost and IP addresses), and the field shows the completed address in grey: **Tab** or **→** fills it in. Every URL you enter is added to the list, and Home loads all your addons at once. Search on Home looks through all of them together. In thumbnail view each addon shows its folders with their first six titles; **View all** lists the whole folder, loading more as you scroll. List view shows every addon as one tree.
+On the Addons page, paste an addon URL and press Enter, for example `https://v3-channels.strem.io`. A missing `/manifest.json` or scheme is assumed. Every URL you enter is added to the addons list, and Home loads all your addons at once. Search on Home looks through all of them together.
 
 Downloads depend on the type of link:
 
@@ -162,7 +98,7 @@ If a source saves no video, the app tries the title's other sources by itself, a
 
 ## Supported sites
 
-There is no built-in site list. Direct files are downloaded as they are, and everything else goes to yt-dlp, which covers [about 1800 sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). If yt-dlp has no extractor for a page, the app loads it and looks for the video it requests. This list comes from what yt-dlp supports. It hasn't been tested site by site.
+Direct files are downloaded as they are, and everything else goes to yt-dlp, which covers [about 1800 sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). If yt-dlp has no extractor for a page, the app loads it and looks for the video it requests. This list comes from what yt-dlp supports. It hasn't been tested site by site.
 
 **Likely to work**
 
@@ -171,11 +107,6 @@ There is no built-in site list. Direct files are downloaded as they are, and eve
 - **Embed hosts used by addons (varies, breaks often):** Streamtape, Doodstream, Mixdrop, Voe, Filemoon, Vidmoly, Streamwish, Vidoza, Upstream, Uqload, Mp4upload, Sibnet, OK.ru, VK.
 - **Direct links**, including debrid-backed addons such as Torrentio.
 
-**Unlikely to work**
-
-- **DRM-protected services:** Netflix, Disney+, Prime Video, Max, Hulu, Apple TV+. Protected video can't be decrypted.
-- **Paid or login-only content.** The app has no way to pass cookies to yt-dlp.
-
 ## Limitations
 
 - DRM-protected video and live streams can't be saved.
@@ -183,3 +114,68 @@ There is no built-in site list. Direct files are downloaded as they are, and eve
 - Hosts can change their players at any time, which may break finding the video.
 - Fedora needs H.264 for GStreamer from RPM Fusion.
 - Catalogs that need the addon's own search stay locked.
+
+## Local builds and development
+
+### Web
+
+```bash
+pnpm install
+pnpm dev    # http://localhost:1420
+pnpm build  # static site in dist/
+```
+
+### Desktop
+
+```bash
+pnpm install
+pnpm tauri dev    # run from source
+pnpm tauri:wsl    # same, hiding WSL's harmless "Dropped Escape call" GPU message
+pnpm tauri build  # packages in src-tauri/target/release/bundle/
+```
+
+Build on the OS you're targeting.
+
+| Platform | Tools | Packages |
+|---|---|---|
+| Linux | See below | `.AppImage`, `.deb`, `.rpm` |
+| Windows | See below. Use a Windows drive, not WSL | `-setup.exe`, `.msi` |
+| macOS | `xcode-select --install`, then `brew install node pnpm rust` | `.dmg`, `.app` |
+
+#### MacOS
+
+macOS needs the Xcode command line tools and [Homebrew](https://brew.sh):
+
+```bash
+pnpm install
+pnpm tauri build    # builds for this Mac's chip
+```
+
+Output is in `src-tauri/target/release/bundle/`: `dmg/strem-dl_<version>_<arch>.dmg` and `macos/strem-dl.app`. `aarch64` is Apple Silicon, `x64` is Intel. The build is ad-hoc signed only, not notarized. To build both chips, add the other target with `rustup target add x86_64-apple-darwin` (or `aarch64-apple-darwin`) and run `pnpm tauri build --target <that target>`. Or run **Build macOS** under Actions, which builds both.
+
+```bash
+xcode-select --install
+brew install node pnpm rustup
+rustup default stable
+pnpm build:local
+```
+macOS blocks the app until its quarantine flag is removed, with `xattr -cr /Applications/strem-dl.app`.
+
+### Debian or Ubuntu
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+pnpm build:local
+```
+
+### Windows, (in PowerShell)
+
+```powershell
+winget install OpenJS.NodeJS.LTS pnpm.pnpm Rustlang.Rustup
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+rustup default stable
+pnpm build:local
+```
+
+The packages aren't signed, so Windows SmartScreen warns about them.
+
